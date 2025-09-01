@@ -46,6 +46,15 @@ module Zotero
       handle_write_response(response)
     end
 
+    def put(path, data:, version: nil, params: {})
+      headers = build_write_headers(version: version)
+      response = self.class.put(path,
+                                headers: headers,
+                                body: data,
+                                query: params)
+      handle_write_response(response)
+    end
+
     def delete(path, version: nil, params: {})
       headers = build_write_headers(version: version)
       response = self.class.delete(path,

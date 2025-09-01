@@ -55,27 +55,21 @@ module Zotero
     end
 
     def item_types(locale: nil)
-      params = {}
-      params[:locale] = locale if locale
-      get("/itemTypes", params: params)
+      get("/itemTypes", params: build_locale_params(locale))
     end
 
     def item_fields(locale: nil)
-      params = {}
-      params[:locale] = locale if locale
-      get("/itemFields", params: params)
+      get("/itemFields", params: build_locale_params(locale))
     end
 
     def item_type_fields(item_type, locale: nil)
       params = { itemType: item_type }
-      params[:locale] = locale if locale
+      params.merge!(build_locale_params(locale))
       get("/itemTypeFields", params: params)
     end
 
     def creator_fields(locale: nil)
-      params = {}
-      params[:locale] = locale if locale
-      get("/creatorFields", params: params)
+      get("/creatorFields", params: build_locale_params(locale))
     end
 
     def item_type_creator_types(item_type)
@@ -96,6 +90,10 @@ module Zotero
 
     def default_headers
       { "Zotero-API-Version" => "3" }
+    end
+
+    def build_locale_params(locale)
+      locale ? { locale: locale } : {}
     end
 
     def build_write_headers(version: nil, write_token: nil)

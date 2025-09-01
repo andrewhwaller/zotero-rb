@@ -7,4 +7,7 @@ module Zotero
   class NotFoundError < Error; end
   class BadRequestError < Error; end
   class ServerError < Error; end
+  class ConflictError < Error; end
+  class PreconditionFailedError < Error; end
+  class PreconditionRequiredError < Error; end
 end

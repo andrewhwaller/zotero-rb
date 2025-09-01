@@ -340,6 +340,98 @@ RSpec.describe Zotero::Client do
         end.to raise_error(Zotero::PreconditionRequiredError, /Precondition required: Version required/)
       end
     end
+
+    describe "file upload methods" do
+      describe "#post_form" do
+        it "makes form-encoded POST requests" do
+          form_data = { upload: "test.pdf", md5: "abc123" }
+
+          expect(described_class).to receive(:post).with(
+            "/users/123/items/ABC123/file",
+            headers: {
+              "Zotero-API-Key" => api_key,
+              "Zotero-API-Version" => "3",
+              "Content-Type" => "application/x-www-form-urlencoded",
+              "If-None-Match" => "*"
+            },
+            body: form_data,
+            query: {}
+          ).and_return(double("HTTParty::Response", code: 200, parsed_response: {}))
+
+          client.post_form("/users/123/items/ABC123/file", form_data: form_data, if_none_match: "*")
+        end
+      end
+
+      describe "#external_post" do
+        it "makes multipart POST to external URL" do
+          multipart_data = { file: "data", key: "value" }
+          response = double("HTTParty::Response", code: 200, body: "OK")
+
+          expect(described_class).to receive(:post).with(
+            "https://s3.amazonaws.com/upload",
+            body: multipart_data,
+            multipart: true,
+            format: :plain
+          ).and_return(response)
+
+          result = client.external_post("https://s3.amazonaws.com/upload", multipart_data: multipart_data)
+          expect(result).to eq("OK")
+        end
+
+        it "raises error on upload failure" do
+          response = double("HTTParty::Response", code: 500, message: "Server Error")
+
+          expect(described_class).to receive(:post).and_return(response)
+
+          expect do
+            client.external_post("https://s3.amazonaws.com/upload", multipart_data: {})
+          end.to raise_error(Zotero::Error, /External upload failed: HTTP 500/)
+        end
+      end
+
+      describe "#request_upload_authorization" do
+        it "makes form request for new file upload" do
+          expect(client).to receive(:post_form).with(
+            "/users/123/items/ABC123/file",
+            form_data: { upload: "test.pdf", md5: "abc123", mtime: 1_234_567_890 },
+            if_none_match: "*"
+          )
+
+          client.request_upload_authorization(
+            "/users/123/items/ABC123/file",
+            filename: "test.pdf",
+            md5: "abc123",
+            mtime: 1_234_567_890
+          )
+        end
+
+        it "makes form request for existing file update" do
+          expect(client).to receive(:post_form).with(
+            "/users/123/items/ABC123/file",
+            form_data: { upload: "test.pdf", md5: "new_hash" },
+            if_match: "new_hash"
+          )
+
+          client.request_upload_authorization(
+            "/users/123/items/ABC123/file",
+            filename: "test.pdf",
+            md5: "new_hash",
+            existing_file: true
+          )
+        end
+      end
+
+      describe "#register_upload" do
+        it "registers upload completion with upload key" do
+          expect(client).to receive(:post_form).with(
+            "/users/123/items/ABC123/file",
+            form_data: { upload: "upload_key_123" }
+          )
+
+          client.register_upload("/users/123/items/ABC123/file", upload_key: "upload_key_123")
+        end
+      end
+    end
   end
 end
 
@@ -451,6 +543,88 @@ RSpec.describe Zotero::Library do
                                                 version: 150,
                                                 params: { collectionKey: "XYZ789,ABC123" })
         user_library.delete_collections(%w[XYZ789 ABC123], version: 150)
+      end
+    end
+
+    describe "file upload operations" do
+      it "#create_attachment wraps single attachment in array" do
+        attachment_data = { itemType: "attachment", contentType: "application/pdf" }
+        expect(client).to receive(:post).with("/users/123/items", data: [attachment_data], version: 150,
+                                                                  write_token: nil)
+        user_library.create_attachment(attachment_data, version: 150)
+      end
+
+      it "#get_file_info calls correct endpoint" do
+        expect(client).to receive(:get).with("/users/123/items/ABC123/file")
+        user_library.get_file_info("ABC123")
+      end
+
+      describe "#upload_file" do
+        let(:file_path) { "/tmp/test.pdf" }
+        let(:auth_response) { { "url" => "https://s3.amazonaws.com/upload", "uploadKey" => "abc123" } }
+
+        before do
+          allow(File).to receive(:basename).with(file_path).and_return("test.pdf")
+          allow(File).to receive(:mtime).with(file_path).and_return(Time.at(1_234_567_890))
+          allow(Digest::MD5).to receive(:file).with(file_path).and_return(double(hexdigest: "abc123hash"))
+          allow(user_library).to receive(:build_upload_params).and_return({ file: "data" })
+        end
+
+        it "orchestrates the 3-step upload process" do
+          expect(client).to receive(:request_upload_authorization).with(
+            "/users/123/items/ABC123/file",
+            filename: "test.pdf",
+            md5: "abc123hash",
+            mtime: 1_234_567_890_000,
+            existing_file: false
+          ).and_return(auth_response)
+
+          expect(client).to receive(:external_post).with(
+            "https://s3.amazonaws.com/upload",
+            multipart_data: { file: "data" }
+          )
+
+          expect(client).to receive(:register_upload).with(
+            "/users/123/items/ABC123/file",
+            upload_key: "abc123"
+          )
+
+          user_library.upload_file("ABC123", file_path)
+        end
+
+        it "handles direct upload without registration" do
+          direct_response = { "url" => "https://direct.zotero.org/upload" }
+
+          expect(client).to receive(:request_upload_authorization).and_return(direct_response)
+          expect(client).to receive(:external_post)
+          expect(client).not_to receive(:register_upload)
+
+          result = user_library.upload_file("ABC123", file_path)
+          expect(result).to be true
+        end
+      end
+
+      describe "#update_file" do
+        let(:file_path) { "/tmp/updated.pdf" }
+        let(:current_md5) { "old_hash" }
+
+        before do
+          allow(File).to receive(:basename).with(file_path).and_return("updated.pdf")
+          allow(File).to receive(:mtime).with(file_path).and_return(Time.at(1_234_567_890))
+          allow(Digest::MD5).to receive(:file).with(file_path).and_return(double(hexdigest: "new_hash"))
+        end
+
+        it "uses existing_file: true for upload authorization" do
+          expect(client).to receive(:request_upload_authorization).with(
+            "/users/123/items/ABC123/file",
+            filename: "updated.pdf",
+            md5: "new_hash",
+            mtime: 1_234_567_890_000,
+            existing_file: true
+          ).and_return({})
+
+          user_library.update_file("ABC123", file_path)
+        end
       end
     end
   end

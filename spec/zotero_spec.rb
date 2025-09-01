@@ -230,6 +230,117 @@ RSpec.describe Zotero::Client do
       end
     end
   end
+
+  describe "write methods" do
+    describe "#post" do
+      it "makes POST requests with write headers" do
+        response = double("HTTParty::Response", code: 200, parsed_response: { "success" => { "0" => "ABC123" } })
+        data = [{ itemType: "book", title: "Test Book" }]
+
+        expect(described_class).to receive(:post).with(
+          "/users/123/items",
+          headers: {
+            "Zotero-API-Key" => api_key,
+            "Zotero-API-Version" => "3",
+            "Content-Type" => "application/json",
+            "If-Unmodified-Since-Version" => "150"
+          },
+          body: data,
+          query: {}
+        ).and_return(response)
+
+        result = client.post("/users/123/items", data: data, version: 150)
+        expect(result["success"]["0"]).to eq("ABC123")
+      end
+
+      it "includes write token when provided" do
+        response = double("HTTParty::Response", code: 200, parsed_response: {})
+        data = [{ itemType: "book" }]
+
+        expect(described_class).to receive(:post).with(
+          "/users/123/items",
+          headers: hash_including("Zotero-Write-Token" => "abc123"),
+          body: data,
+          query: {}
+        ).and_return(response)
+
+        client.post("/users/123/items", data: data, write_token: "abc123")
+      end
+    end
+
+    describe "#patch" do
+      it "makes PATCH requests with version header" do
+        response = double("HTTParty::Response", code: 200, parsed_response: {})
+        data = { title: "Updated Title" }
+
+        expect(described_class).to receive(:patch).with(
+          "/users/123/items/ABC123",
+          headers: {
+            "Zotero-API-Key" => api_key,
+            "Zotero-API-Version" => "3",
+            "Content-Type" => "application/json",
+            "If-Unmodified-Since-Version" => "150"
+          },
+          body: data,
+          query: {}
+        ).and_return(response)
+
+        client.patch("/users/123/items/ABC123", data: data, version: 150)
+      end
+    end
+
+    describe "#delete" do
+      it "makes DELETE requests with version header" do
+        response = double("HTTParty::Response", code: 204)
+
+        expect(described_class).to receive(:delete).with(
+          "/users/123/items/ABC123",
+          headers: {
+            "Zotero-API-Key" => api_key,
+            "Zotero-API-Version" => "3",
+            "Content-Type" => "application/json",
+            "If-Unmodified-Since-Version" => "150"
+          },
+          query: {}
+        ).and_return(response)
+
+        result = client.delete("/users/123/items/ABC123", version: 150)
+        expect(result).to be true
+      end
+    end
+
+    describe "error handling" do
+      it "raises ConflictError on 409" do
+        response = double("HTTParty::Response", code: 409, body: "Library locked")
+
+        allow(described_class).to receive(:post).and_return(response)
+
+        expect do
+          client.post("/users/123/items", data: [{}])
+        end.to raise_error(Zotero::ConflictError, /Conflict: Library locked/)
+      end
+
+      it "raises PreconditionFailedError on 412" do
+        response = double("HTTParty::Response", code: 412, body: "Version mismatch")
+
+        allow(described_class).to receive(:patch).and_return(response)
+
+        expect do
+          client.patch("/users/123/items/ABC123", data: {})
+        end.to raise_error(Zotero::PreconditionFailedError, /Precondition failed: Version mismatch/)
+      end
+
+      it "raises PreconditionRequiredError on 428" do
+        response = double("HTTParty::Response", code: 428, body: "Version required")
+
+        allow(described_class).to receive(:post).and_return(response)
+
+        expect do
+          client.post("/users/123/items", data: [{}])
+        end.to raise_error(Zotero::PreconditionRequiredError, /Precondition required: Version required/)
+      end
+    end
+  end
 end
 
 RSpec.describe Zotero::Library do
@@ -273,6 +384,74 @@ RSpec.describe Zotero::Library do
     it "#tags calls the correct endpoint" do
       expect(client).to receive(:get).with("/users/123/tags", params: {})
       user_library.tags
+    end
+  end
+
+  describe "write methods" do
+    describe "item operations" do
+      it "#create_item wraps single item in array" do
+        item_data = { itemType: "book", title: "Test" }
+        expect(client).to receive(:post).with("/users/123/items", data: [item_data], version: 150, write_token: nil)
+        user_library.create_item(item_data, version: 150)
+      end
+
+      it "#create_items passes array directly" do
+        items = [{ itemType: "book" }, { itemType: "article" }]
+        expect(client).to receive(:post).with("/users/123/items", data: items, version: nil, write_token: "token123")
+        user_library.create_items(items, write_token: "token123")
+      end
+
+      it "#update_item calls patch with correct path" do
+        item_data = { title: "Updated Title" }
+        expect(client).to receive(:patch).with("/users/123/items/ABC123", data: item_data, version: 150)
+        user_library.update_item("ABC123", item_data, version: 150)
+      end
+
+      it "#delete_item calls delete with item key" do
+        expect(client).to receive(:delete).with("/users/123/items/ABC123", version: 150)
+        user_library.delete_item("ABC123", version: 150)
+      end
+
+      it "#delete_items joins item keys for bulk delete" do
+        expect(client).to receive(:delete).with("/users/123/items",
+                                                version: 150,
+                                                params: { itemKey: "ABC123,DEF456" })
+        user_library.delete_items(%w[ABC123 DEF456], version: 150)
+      end
+    end
+
+    describe "collection operations" do
+      it "#create_collection wraps single collection in array" do
+        collection_data = { name: "Test Collection" }
+        expect(client).to receive(:post).with("/users/123/collections", data: [collection_data], version: 150,
+                                                                        write_token: nil)
+        user_library.create_collection(collection_data, version: 150)
+      end
+
+      it "#create_collections passes array directly" do
+        collections = [{ name: "Collection 1" }, { name: "Collection 2" }]
+        expect(client).to receive(:post).with("/users/123/collections", data: collections, version: nil,
+                                                                        write_token: "token123")
+        user_library.create_collections(collections, write_token: "token123")
+      end
+
+      it "#update_collection calls patch with correct path" do
+        collection_data = { name: "Updated Name" }
+        expect(client).to receive(:patch).with("/users/123/collections/XYZ789", data: collection_data, version: 150)
+        user_library.update_collection("XYZ789", collection_data, version: 150)
+      end
+
+      it "#delete_collection calls delete with collection key" do
+        expect(client).to receive(:delete).with("/users/123/collections/XYZ789", version: 150)
+        user_library.delete_collection("XYZ789", version: 150)
+      end
+
+      it "#delete_collections joins collection keys for bulk delete" do
+        expect(client).to receive(:delete).with("/users/123/collections",
+                                                version: 150,
+                                                params: { collectionKey: "XYZ789,ABC123" })
+        user_library.delete_collections(%w[XYZ789 ABC123], version: 150)
+      end
     end
   end
 end

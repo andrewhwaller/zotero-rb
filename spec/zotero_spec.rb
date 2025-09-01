@@ -627,5 +627,53 @@ RSpec.describe Zotero::Library do
         end
       end
     end
+
+    describe "Fulltext operations" do
+      describe "#fulltext_since" do
+        it "calls the correct endpoint with since parameter" do
+          expect(client).to receive(:get).with("/users/123/fulltext", params: { since: 100 })
+          user_library.fulltext_since(since: 100)
+        end
+
+        it "requires the since parameter" do
+          expect { user_library.fulltext_since }.to raise_error(ArgumentError)
+        end
+      end
+
+      describe "#item_fulltext" do
+        it "calls the correct endpoint for specific item" do
+          expect(client).to receive(:get).with("/users/123/items/ABC123/fulltext")
+          user_library.item_fulltext("ABC123")
+        end
+      end
+
+      describe "#set_item_fulltext" do
+        let(:content_data) do
+          {
+            "content" => "This is full-text content.",
+            "indexedChars" => 26,
+            "totalChars" => 26
+          }
+        end
+
+        it "calls PUT with content data" do
+          expect(client).to receive(:put).with(
+            "/users/123/items/ABC123/fulltext",
+            data: content_data,
+            version: nil
+          )
+          user_library.set_item_fulltext("ABC123", content_data)
+        end
+
+        it "accepts version parameter" do
+          expect(client).to receive(:put).with(
+            "/users/123/items/ABC123/fulltext",
+            data: content_data,
+            version: 42
+          )
+          user_library.set_item_fulltext("ABC123", content_data, version: 42)
+        end
+      end
+    end
   end
 end

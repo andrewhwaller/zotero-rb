@@ -14,7 +14,7 @@ module Zotero
     end
 
     def get(path)
-      response = self.class.get(path, headers: auth_headers)
+      response = self.class.get(path, headers: auth_headers.merge(default_headers))
       handle_response(response)
     end
 
@@ -24,6 +24,10 @@ module Zotero
 
     def auth_headers
       { "Zotero-API-Key" => api_key }
+    end
+
+    def default_headers
+      { "Zotero-API-Version" => "3" }
     end
 
     def handle_response(response)

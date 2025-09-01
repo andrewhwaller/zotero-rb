@@ -20,6 +20,14 @@ module Zotero
       handle_response(response, params[:format])
     end
 
+    def user_library(user_id)
+      Library.new(client: self, type: :user, id: user_id)
+    end
+
+    def group_library(group_id)
+      Library.new(client: self, type: :group, id: group_id)
+    end
+
     private
 
     attr_reader :api_key

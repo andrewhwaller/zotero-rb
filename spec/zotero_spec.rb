@@ -120,6 +120,116 @@ RSpec.describe Zotero::Client do
       expect(library).to be_a(Zotero::Library)
     end
   end
+
+  describe "schema methods" do
+    describe "#item_types" do
+      it "calls the correct endpoint without locale" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemTypes",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: {}
+        ).and_return(response)
+
+        client.item_types
+      end
+
+      it "calls the correct endpoint with locale" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemTypes",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: { locale: "fr-FR" }
+        ).and_return(response)
+
+        client.item_types(locale: "fr-FR")
+      end
+    end
+
+    describe "#item_fields" do
+      it "calls the correct endpoint" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemFields",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: {}
+        ).and_return(response)
+
+        client.item_fields
+      end
+    end
+
+    describe "#item_type_fields" do
+      it "calls the correct endpoint with required itemType" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemTypeFields",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: { itemType: "book" }
+        ).and_return(response)
+
+        client.item_type_fields("book")
+      end
+
+      it "calls the correct endpoint with locale" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemTypeFields",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: { itemType: "book", locale: "fr-FR" }
+        ).and_return(response)
+
+        client.item_type_fields("book", locale: "fr-FR")
+      end
+    end
+
+    describe "#creator_fields" do
+      it "calls the correct endpoint" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/creatorFields",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: {}
+        ).and_return(response)
+
+        client.creator_fields
+      end
+    end
+
+    describe "#item_type_creator_types" do
+      it "calls the correct endpoint" do
+        response = double("HTTParty::Response", code: 200, parsed_response: [])
+
+        expect(described_class).to receive(:get).with(
+          "/itemTypeCreatorTypes",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: { itemType: "book" }
+        ).and_return(response)
+
+        client.item_type_creator_types("book")
+      end
+    end
+
+    describe "#new_item_template" do
+      it "calls the correct endpoint" do
+        response = double("HTTParty::Response", code: 200, parsed_response: {})
+
+        expect(described_class).to receive(:get).with(
+          "/items/new",
+          headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+          query: { itemType: "book" }
+        ).and_return(response)
+
+        client.new_item_template("book")
+      end
+    end
+  end
 end
 
 RSpec.describe Zotero::Library do

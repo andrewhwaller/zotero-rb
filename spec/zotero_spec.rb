@@ -28,30 +28,55 @@ RSpec.describe Zotero::Client do
   end
 
   describe "#get" do
-    it "makes HTTP GET requests with authentication headers" do
+    it "makes HTTP GET requests with authentication and version headers" do
       # Stub the HTTParty request
-      response = double("HTTParty::Response", code: 200, parsed_response: { "items" => [] })
+      response = double("HTTParty::Response", code: 200, parsed_response: { "items" => [] }, headers: {})
 
       expect(described_class).to receive(:get).with(
         "/users/123/items",
-        headers: { "Zotero-API-Key" => api_key }
+        headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+        query: {}
       ).and_return(response)
 
       result = client.get("/users/123/items")
       expect(result).to eq({ "items" => [] })
     end
 
-    it "raises error on 401 authentication failure" do
+    it "accepts query parameters" do
+      response = double("HTTParty::Response", code: 200, parsed_response: [], body: "ABC123\nDEF456", headers: {})
+
+      expect(described_class).to receive(:get).with(
+        "/users/123/items",
+        headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+        query: { limit: 10, format: "keys" }
+      ).and_return(response)
+
+      client.get("/users/123/items", params: { limit: 10, format: "keys" })
+    end
+
+    it "passes all parameters to the API" do
+      response = double("HTTParty::Response", code: 200, parsed_response: [], headers: {})
+
+      expect(described_class).to receive(:get).with(
+        "/users/123/items",
+        headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
+        query: { limit: 10, invalid_param: "test" }
+      ).and_return(response)
+
+      client.get("/users/123/items", params: { limit: 10, invalid_param: "test" })
+    end
+
+    it "raises AuthenticationError on 401 authentication failure" do
       response = double("HTTParty::Response", code: 401, message: "Unauthorized")
 
       allow(described_class).to receive(:get).and_return(response)
 
       expect do
         client.get("/users/123/items")
-      end.to raise_error(Zotero::Error, /Authentication failed/)
+      end.to raise_error(Zotero::AuthenticationError, /Authentication failed/)
     end
 
-    it "raises error on 404 not found" do
+    it "raises NotFoundError on 404 not found" do
       request = double("Request", path: "/users/123/items")
       response = double("HTTParty::Response", code: 404, message: "Not Found", request: request)
 
@@ -59,17 +84,85 @@ RSpec.describe Zotero::Client do
 
       expect do
         client.get("/users/123/items")
-      end.to raise_error(Zotero::Error, /Resource not found/)
+      end.to raise_error(Zotero::NotFoundError, /Resource not found/)
     end
 
-    it "raises error on other HTTP errors" do
+    it "raises ServerError on 500 server errors" do
       response = double("HTTParty::Response", code: 500, message: "Internal Server Error")
 
       allow(described_class).to receive(:get).and_return(response)
 
       expect do
         client.get("/users/123/items")
-      end.to raise_error(Zotero::Error, /HTTP 500/)
+      end.to raise_error(Zotero::ServerError, /Server error: HTTP 500/)
+    end
+
+    it "returns raw body for non-json formats" do
+      response = double("HTTParty::Response", code: 200, body: "ABC123\nDEF456\n\n")
+
+      allow(described_class).to receive(:get).and_return(response)
+
+      result = client.get("/users/123/items", params: { format: "keys" })
+      expect(result).to eq("ABC123\nDEF456\n\n")
+    end
+  end
+
+  describe "#user_library" do
+    it "returns a Library instance for user libraries" do
+      library = client.user_library(123)
+      expect(library).to be_a(Zotero::Library)
+    end
+  end
+
+  describe "#group_library" do
+    it "returns a Library instance for group libraries" do
+      library = client.group_library(456)
+      expect(library).to be_a(Zotero::Library)
+    end
+  end
+end
+
+RSpec.describe Zotero::Library do
+  let(:api_key) { "test_api_key" }
+  let(:client) { Zotero::Client.new(api_key: api_key) }
+  let(:user_library) { described_class.new(client: client, type: :user, id: 123) }
+  let(:group_library) { described_class.new(client: client, type: :group, id: 456) }
+
+  describe "#initialize" do
+    it "validates library type" do
+      expect do
+        described_class.new(client: client, type: :invalid, id: 123)
+      end.to raise_error(ArgumentError, /Invalid library type/)
+    end
+
+    it "accepts user type" do
+      expect { user_library }.not_to raise_error
+    end
+
+    it "accepts group type" do
+      expect { group_library }.not_to raise_error
+    end
+  end
+
+  describe "resource methods" do
+    it "#collections calls the correct endpoint" do
+      expect(client).to receive(:get).with("/users/123/collections", params: {})
+      user_library.collections
+    end
+
+    it "#items calls the correct endpoint" do
+      expect(client).to receive(:get).with("/groups/456/items", params: { limit: 10 })
+      group_library.items(limit: 10)
+    end
+
+    it "#searches calls the correct endpoint" do
+      expect(client).to receive(:get).with("/users/123/searches", params: {})
+      user_library.searches
+    end
+
+    it "#tags calls the correct endpoint" do
+      expect(client).to receive(:get).with("/users/123/tags", params: {})
+      user_library.tags
     end
   end
 end

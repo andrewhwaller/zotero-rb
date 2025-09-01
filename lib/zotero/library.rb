@@ -1,7 +1,11 @@
 # frozen_string_literal: true
 
+require_relative "library_file_operations"
+
 module Zotero
   class Library
+    include LibraryFileOperations
+
     VALID_TYPES = %w[user group].freeze
 
     def initialize(client:, type:, id:)

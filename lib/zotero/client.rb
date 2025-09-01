@@ -28,6 +28,38 @@ module Zotero
       Library.new(client: self, type: :group, id: group_id)
     end
 
+    def item_types(locale: nil)
+      params = {}
+      params[:locale] = locale if locale
+      get("/itemTypes", params: params)
+    end
+
+    def item_fields(locale: nil)
+      params = {}
+      params[:locale] = locale if locale
+      get("/itemFields", params: params)
+    end
+
+    def item_type_fields(item_type, locale: nil)
+      params = { itemType: item_type }
+      params[:locale] = locale if locale
+      get("/itemTypeFields", params: params)
+    end
+
+    def creator_fields(locale: nil)
+      params = {}
+      params[:locale] = locale if locale
+      get("/creatorFields", params: params)
+    end
+
+    def item_type_creator_types(item_type)
+      get("/itemTypeCreatorTypes", params: { itemType: item_type })
+    end
+
+    def new_item_template(item_type)
+      get("/items/new", params: { itemType: item_type })
+    end
+
     private
 
     attr_reader :api_key

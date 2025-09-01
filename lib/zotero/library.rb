@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
 require_relative "library_file_operations"
+require_relative "fulltext"
 
 module Zotero
   class Library
     include LibraryFileOperations
+    include Fulltext
 
     VALID_TYPES = %w[user group].freeze
 

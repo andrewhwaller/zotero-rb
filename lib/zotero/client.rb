@@ -13,9 +13,11 @@ module Zotero
       @api_key = api_key
     end
 
-    def get(path)
-      response = self.class.get(path, headers: auth_headers.merge(default_headers))
-      handle_response(response)
+    def get(path, params: {})
+      response = self.class.get(path,
+                                headers: auth_headers.merge(default_headers),
+                                query: params)
+      handle_response(response, params[:format])
     end
 
     private

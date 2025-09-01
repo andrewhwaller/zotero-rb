@@ -51,13 +51,11 @@ module Zotero
     end
 
     def perform_external_upload(auth_response, file_path, upload_path)
-      # Step 2: Upload file using returned parameters
       if auth_response["url"]
         upload_params = build_upload_params(auth_response, file_path)
         @client.external_post(auth_response["url"], multipart_data: upload_params)
       end
 
-      # Step 3: Register upload completion
       if auth_response["uploadKey"]
         @client.register_upload(upload_path, upload_key: auth_response["uploadKey"])
       else

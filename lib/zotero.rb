@@ -2,6 +2,7 @@
 
 require_relative "zotero/version"
 require_relative "zotero/client"
+require_relative "zotero/library"
 require_relative "zotero/error"
 
 module Zotero

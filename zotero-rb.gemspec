@@ -35,7 +35,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "faraday", "~> 2.0"
-  spec.add_dependency "faraday-retry", "~> 2.0"
-  spec.add_dependency "oauth", "~> 1.1"
+  spec.add_dependency "httparty", "~> 0.21"
 end

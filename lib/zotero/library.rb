@@ -2,11 +2,13 @@
 
 require_relative "library_file_operations"
 require_relative "fulltext"
+require_relative "syncing"
 
 module Zotero
   class Library
     include LibraryFileOperations
     include Fulltext
+    include Syncing
 
     VALID_TYPES = %w[user group].freeze
 

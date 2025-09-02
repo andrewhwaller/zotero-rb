@@ -5,6 +5,7 @@ require_relative "item_types"
 require_relative "fields"
 require_relative "file_upload"
 require_relative "http_errors"
+require_relative "syncing"
 
 module Zotero
   class Client
@@ -13,6 +14,7 @@ module Zotero
     include Fields
     include FileUpload
     include HTTPErrors
+    include Syncing
 
     base_uri "https://api.zotero.org"
     format :json

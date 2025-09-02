@@ -32,7 +32,6 @@ module Zotero
         existing_file: existing_file
       )
 
-      # Step 2 & 3: Upload and register
       perform_external_upload(auth_response, file_path, upload_path)
     end
 

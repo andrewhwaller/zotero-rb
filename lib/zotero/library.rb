@@ -6,6 +6,7 @@ require_relative "syncing"
 
 module Zotero
   class Library
+    # TODO: rename this module, LibraryFileOperations sounds weird
     include LibraryFileOperations
     include Fulltext
     include Syncing

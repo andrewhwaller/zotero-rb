@@ -9,6 +9,9 @@ require_relative "fields"
 require_relative "file_upload"
 require_relative "http_errors"
 require_relative "syncing"
+require_relative "http_config"
+require_relative "http_connection"
+require_relative "network_errors"
 
 module Zotero
   # The main HTTP client for interacting with the Zotero Web API v3.
@@ -25,6 +28,7 @@ module Zotero
     include FileUpload
     include HTTPErrors
     include Syncing
+    include NetworkErrors
 
     BASE_URI = "https://api.zotero.org"
 
@@ -99,13 +103,13 @@ module Zotero
       request_options = build_request_options(options)
       uri = build_uri(path, request_options[:params])
 
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true if uri.scheme == "https"
+      handle_network_errors do
+        connection = HTTPConnection.new(uri)
+        request = build_request(method, uri, request_options[:headers], request_options[:body], request_options)
 
-      request = build_request(method, uri, request_options[:headers], request_options[:body], request_options)
-
-      net_response = http.request(request)
-      ResponseAdapter.new(net_response, uri)
+        net_response = connection.request(request)
+        ResponseAdapter.new(net_response, uri)
+      end
     end
 
     def build_request_options(options)

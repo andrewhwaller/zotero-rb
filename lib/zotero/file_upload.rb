@@ -9,12 +9,12 @@ module Zotero
       headers["If-Match"] = if_match if if_match
       headers["If-None-Match"] = if_none_match if if_none_match
 
-      response = self.class.post(path, headers: headers, body: form_data, query: params)
+      response = http_request(:post, path, headers: headers, body: form_data, params: params)
       handle_response(response)
     end
 
     def external_post(url, multipart_data:)
-      response = self.class.post(url, body: multipart_data, multipart: true, format: :plain)
+      response = http_request(:post, url, body: multipart_data, options: { multipart: true, format: :plain })
 
       case response.code
       when 200..299

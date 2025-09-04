@@ -1,11 +1,17 @@
 # frozen_string_literal: true
 
-require "httparty"
+require "net/http"
+require "uri"
+require "json"
+require "cgi"
 require_relative "item_types"
 require_relative "fields"
 require_relative "file_upload"
 require_relative "http_errors"
 require_relative "syncing"
+require_relative "http_config"
+require_relative "http_connection"
+require_relative "network_errors"
 
 module Zotero
   # The main HTTP client for interacting with the Zotero Web API v3.
@@ -15,15 +21,16 @@ module Zotero
   #   client = Zotero::Client.new(api_key: 'your-api-key-here')
   #   library = client.user_library(12345)
   #
+  # rubocop:disable Metrics/ClassLength
   class Client
-    include HTTParty
     include ItemTypes
     include Fields
     include FileUpload
     include HTTPErrors
     include Syncing
+    include NetworkErrors
 
-    base_uri "https://api.zotero.org"
+    BASE_URI = "https://api.zotero.org"
 
     # Initialize a new Zotero API client.
     #
@@ -33,44 +40,44 @@ module Zotero
     end
 
     def get(path, params: {})
-      response = self.class.get(path,
-                                headers: auth_headers.merge(default_headers),
-                                query: params)
+      response = http_request(:get, path,
+                              headers: auth_headers.merge(default_headers),
+                              params: params)
       handle_response(response, params[:format])
     end
 
     def post(path, data:, version: nil, write_token: nil, params: {})
       headers = build_write_headers(version: version, write_token: write_token)
-      response = self.class.post(path,
-                                 headers: headers,
-                                 body: data,
-                                 query: params)
+      response = http_request(:post, path,
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def patch(path, data:, version: nil, params: {})
       headers = build_write_headers(version: version)
-      response = self.class.patch(path,
-                                  headers: headers,
-                                  body: data,
-                                  query: params)
+      response = http_request(:patch, path,
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def put(path, data:, version: nil, params: {})
       headers = build_write_headers(version: version)
-      response = self.class.put(path,
-                                headers: headers,
-                                body: data,
-                                query: params)
+      response = http_request(:put, path,
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def delete(path, version: nil, params: {})
       headers = build_write_headers(version: version)
-      response = self.class.delete(path,
-                                   headers: headers,
-                                   query: params)
+      response = http_request(:delete, path,
+                              headers: headers,
+                              params: params)
       handle_write_response(response)
     end
 
@@ -88,6 +95,80 @@ module Zotero
     # @return [Library] A Library instance for the specified group
     def group_library(group_id)
       Library.new(client: self, type: :group, id: group_id)
+    end
+
+    protected
+
+    def http_request(method, path, **options)
+      request_options = build_request_options(options)
+      uri = build_uri(path, request_options[:params])
+
+      handle_network_errors do
+        connection = HTTPConnection.new(uri)
+        request = build_request(method, uri, request_options[:headers], request_options[:body], request_options)
+
+        net_response = connection.request(request)
+        ResponseAdapter.new(net_response, uri)
+      end
+    end
+
+    def build_request_options(options)
+      {
+        headers: options[:headers] || {},
+        body: options[:body],
+        params: options[:params] || {},
+        multipart: options.dig(:options, :multipart),
+        format: options.dig(:options, :format)
+      }
+    end
+
+    def build_uri(path, params = {})
+      base = path.start_with?("http") ? path : "#{BASE_URI}#{path}"
+      uri = URI(base)
+
+      unless params.empty?
+        query_params = params.map { |k, v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join("&")
+        uri.query = uri.query ? "#{uri.query}&#{query_params}" : query_params
+      end
+
+      uri
+    end
+
+    def build_request(method, uri, headers, body, request_options)
+      request = create_request(method, uri)
+      set_headers(request, headers)
+      set_request_body(request, method, body, headers, request_options) if body
+      request
+    end
+
+    def create_request(method, uri)
+      request_class = case method
+                      when :get then Net::HTTP::Get
+                      when :post then Net::HTTP::Post
+                      when :put then Net::HTTP::Put
+                      when :patch then Net::HTTP::Patch
+                      when :delete then Net::HTTP::Delete
+                      else raise ArgumentError, "Unsupported HTTP method: #{method}"
+                      end
+
+      request_class.new(uri)
+    end
+
+    def set_headers(request, headers)
+      headers.each { |key, value| request[key] = value }
+    end
+
+    def set_request_body(request, method, body, headers, request_options)
+      return unless %i[post put patch].include?(method)
+
+      if request_options[:multipart]
+        request.set_form(body, "multipart/form-data")
+      elsif headers["Content-Type"] == "application/x-www-form-urlencoded"
+        request.set_form_data(body)
+      else
+        request.body = body.is_a?(String) ? body : JSON.generate(body)
+        request["Content-Type"] = "application/json" unless headers["Content-Type"]
+      end
     end
 
     private
@@ -134,6 +215,65 @@ module Zotero
       else
         response.body
       end
+    end
+  end
+  # rubocop:enable Metrics/ClassLength
+
+  # Adapter to provide HTTParty-compatible interface for Net::HTTP responses
+  class ResponseAdapter
+    attr_reader :net_response, :uri
+
+    def initialize(net_response, uri)
+      @net_response = net_response
+      @uri = uri
+    end
+
+    def code
+      @net_response.code.to_i
+    end
+
+    def parsed_response
+      @parsed_response ||= parse_body
+    end
+
+    def body
+      @net_response.body
+    end
+
+    def headers
+      @headers ||= @net_response.to_hash.transform_values(&:first)
+    end
+
+    def message
+      @net_response.message
+    end
+
+    def request
+      @request ||= RequestAdapter.new(@uri)
+    end
+
+    private
+
+    def parse_body
+      content_type = @net_response.content_type
+      return nil if @net_response.body.nil? || @net_response.body.empty?
+
+      if content_type&.include?("application/json")
+        JSON.parse(@net_response.body)
+      else
+        @net_response.body
+      end
+    rescue JSON::ParserError
+      @net_response.body
+    end
+  end
+
+  # Adapter to provide request.path access for error handling
+  class RequestAdapter
+    attr_reader :path
+
+    def initialize(uri)
+      @path = uri.path
     end
   end
 end

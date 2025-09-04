@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module Zotero
   # File upload operations for library items
   module LibraryFileOperations
@@ -36,8 +38,6 @@ module Zotero
     end
 
     def extract_file_metadata(file_path)
-      require "digest"
-
       {
         filename: File.basename(file_path),
         md5: Digest::MD5.file(file_path).hexdigest,

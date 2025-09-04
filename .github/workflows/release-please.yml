@@ -1,0 +1,51 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          release-type: ruby
+
+  publish:
+    needs: release-please
+    runs-on: ubuntu-latest
+    if: ${{ needs.release-please.outputs.release_created }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1'
+          bundler-cache: true
+      
+      - name: Run tests
+        run: bundle exec rake spec
+        
+      - name: Run RuboCop
+        run: bundle exec rubocop
+        
+      - name: Build gem
+        run: bundle exec rake build
+        
+      - name: Publish to RubyGems
+        run: |
+          mkdir -p ~/.gem
+          echo ":rubygems_api_key: ${RUBYGEMS_API_KEY}" > ~/.gem/credentials
+          chmod 0600 ~/.gem/credentials
+          gem push pkg/*.gem
+        env:
+          RUBYGEMS_API_KEY: ${{ secrets.RUBYGEMS_API_KEY }}

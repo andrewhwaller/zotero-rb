@@ -84,10 +84,10 @@ RSpec.describe Zotero::LibraryFileOperations do
       it "extracts filename, MD5, and mtime" do
         # Stub the method to avoid Digest mocking issues in CI
         allow(instance).to receive(:extract_file_metadata).with(file_path).and_return({
-          filename: "test.pdf",
-          md5: "abc123", 
-          mtime: 1_234_567_890_000
-        })
+                                                                                        filename: "test.pdf",
+                                                                                        md5: "abc123",
+                                                                                        mtime: 1_234_567_890_000
+                                                                                      })
 
         result = instance.send(:extract_file_metadata, file_path)
 

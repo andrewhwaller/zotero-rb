@@ -35,44 +35,44 @@ module Zotero
     end
 
     def get(path, params: {})
-      response = http_request(:get, path, 
-                             headers: auth_headers.merge(default_headers),
-                             params: params)
+      response = http_request(:get, path,
+                              headers: auth_headers.merge(default_headers),
+                              params: params)
       handle_response(response, params[:format])
     end
 
     def post(path, data:, version: nil, write_token: nil, params: {})
       headers = build_write_headers(version: version, write_token: write_token)
       response = http_request(:post, path,
-                             headers: headers,
-                             body: data,
-                             params: params)
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def patch(path, data:, version: nil, params: {})
       headers = build_write_headers(version: version)
       response = http_request(:patch, path,
-                             headers: headers,
-                             body: data,
-                             params: params)
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def put(path, data:, version: nil, params: {})
       headers = build_write_headers(version: version)
       response = http_request(:put, path,
-                             headers: headers,
-                             body: data,
-                             params: params)
+                              headers: headers,
+                              body: data,
+                              params: params)
       handle_write_response(response)
     end
 
     def delete(path, version: nil, params: {})
       headers = build_write_headers(version: version)
       response = http_request(:delete, path,
-                             headers: headers,
-                             params: params)
+                              headers: headers,
+                              params: params)
       handle_write_response(response)
     end
 
@@ -96,56 +96,56 @@ module Zotero
 
     def http_request(method, path, headers: {}, body: nil, params: {}, multipart: false, format: nil)
       uri = build_uri(path, params)
-      
+
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true if uri.scheme == 'https'
-      
+      http.use_ssl = true if uri.scheme == "https"
+
       request = build_request(method, uri, headers, body, multipart, format)
-      
+
       net_response = http.request(request)
       ResponseAdapter.new(net_response, uri)
     end
 
     def build_uri(path, params = {})
-      base = path.start_with?('http') ? path : "#{BASE_URI}#{path}"
+      base = path.start_with?("http") ? path : "#{BASE_URI}#{path}"
       uri = URI(base)
-      
+
       unless params.empty?
-        query_params = params.map { |k, v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join('&')
+        query_params = params.map { |k, v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join("&")
         uri.query = uri.query ? "#{uri.query}&#{query_params}" : query_params
       end
-      
+
       uri
     end
 
-    def build_request(method, uri, headers, body, multipart, format)
+    def build_request(method, uri, headers, body, multipart, _format)
       request_class = case method
-                     when :get then Net::HTTP::Get
-                     when :post then Net::HTTP::Post
-                     when :put then Net::HTTP::Put
-                     when :patch then Net::HTTP::Patch
-                     when :delete then Net::HTTP::Delete
-                     else raise ArgumentError, "Unsupported HTTP method: #{method}"
-                     end
+                      when :get then Net::HTTP::Get
+                      when :post then Net::HTTP::Post
+                      when :put then Net::HTTP::Put
+                      when :patch then Net::HTTP::Patch
+                      when :delete then Net::HTTP::Delete
+                      else raise ArgumentError, "Unsupported HTTP method: #{method}"
+                      end
 
       request = request_class.new(uri)
-      
+
       headers.each { |key, value| request[key] = value }
-      
-      if body && [:post, :put, :patch].include?(method)
+
+      if body && %i[post put patch].include?(method)
         if multipart
           # Handle multipart form data for file uploads
-          request.set_form(body, 'multipart/form-data')
-        elsif headers['Content-Type'] == 'application/x-www-form-urlencoded'
+          request.set_form(body, "multipart/form-data")
+        elsif headers["Content-Type"] == "application/x-www-form-urlencoded"
           # Handle form encoding
           request.set_form_data(body)
         else
           # Handle JSON body
           request.body = body.is_a?(String) ? body : JSON.generate(body)
-          request['Content-Type'] = 'application/json' unless headers['Content-Type']
+          request["Content-Type"] = "application/json" unless headers["Content-Type"]
         end
       end
-      
+
       request
     end
 
@@ -235,7 +235,7 @@ module Zotero
       content_type = @net_response.content_type
       return nil if @net_response.body.nil? || @net_response.body.empty?
 
-      if content_type&.include?('application/json')
+      if content_type&.include?("application/json")
         JSON.parse(@net_response.body)
       else
         @net_response.body

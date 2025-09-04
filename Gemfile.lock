@@ -1,20 +1,20 @@
 PATH
   remote: .
   specs:
-    zotero-rb (0.1.0)
-      httparty (~> 0.21)
+    zotero-rb (0.1.1)
+      csv
+      httparty (~> 0.21.0)
 
 GEM
   remote: https://rubygems.org/
   specs:
     ast (2.4.3)
-    bigdecimal (3.2.2)
+    bigdecimal (3.2.3)
     csv (3.3.5)
     date (3.4.1)
     diff-lcs (1.6.2)
     erb (5.0.2)
-    httparty (0.23.1)
-      csv
+    httparty (0.21.0)
       mini_mime (>= 1.0.0)
       multi_xml (>= 0.5.2)
     io-console (0.8.1)

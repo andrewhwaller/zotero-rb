@@ -19,12 +19,13 @@ RSpec.describe Zotero::Client do
   describe "HTTP methods integration" do
     describe "#get" do
       it "makes HTTP GET requests with authentication and version headers" do
-        response = double("HTTParty::Response", code: 200, parsed_response: { "items" => [] }, headers: {})
+        response = double("Response", code: 200, parsed_response: { "items" => [] }, headers: {})
 
-        expect(described_class).to receive(:get).with(
+        expect(client).to receive(:http_request).with(
+          :get,
           "/users/123/items",
           headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
-          query: {}
+          params: {}
         ).and_return(response)
 
         result = client.get("/users/123/items")
@@ -32,21 +33,22 @@ RSpec.describe Zotero::Client do
       end
 
       it "accepts query parameters" do
-        response = double("HTTParty::Response", code: 200, parsed_response: [], body: "ABC123\nDEF456", headers: {})
+        response = double("Response", code: 200, parsed_response: [], body: "ABC123\nDEF456", headers: {})
 
-        expect(described_class).to receive(:get).with(
+        expect(client).to receive(:http_request).with(
+          :get,
           "/users/123/items",
           headers: { "Zotero-API-Key" => api_key, "Zotero-API-Version" => "3" },
-          query: { limit: 10, format: "keys" }
+          params: { limit: 10, format: "keys" }
         ).and_return(response)
 
         client.get("/users/123/items", params: { limit: 10, format: "keys" })
       end
 
       it "returns raw body for non-json formats" do
-        response = double("HTTParty::Response", code: 200, body: "ABC123\nDEF456\n\n")
+        response = double("Response", code: 200, body: "ABC123\nDEF456\n\n")
 
-        allow(described_class).to receive(:get).and_return(response)
+        allow(client).to receive(:http_request).and_return(response)
 
         result = client.get("/users/123/items", params: { format: "keys" })
         expect(result).to eq("ABC123\nDEF456\n\n")
@@ -55,10 +57,11 @@ RSpec.describe Zotero::Client do
 
     describe "#post" do
       it "makes POST requests with write headers" do
-        response = double("HTTParty::Response", code: 200, parsed_response: { "success" => { "0" => "ABC123" } })
+        response = double("Response", code: 200, parsed_response: { "success" => { "0" => "ABC123" } })
         data = [{ itemType: "book", title: "Test Book" }]
 
-        expect(described_class).to receive(:post).with(
+        expect(client).to receive(:http_request).with(
+          :post,
           "/users/123/items",
           headers: {
             "Zotero-API-Key" => api_key,
@@ -67,7 +70,7 @@ RSpec.describe Zotero::Client do
             "If-Unmodified-Since-Version" => "150"
           },
           body: data,
-          query: {}
+          params: {}
         ).and_return(response)
 
         result = client.post("/users/123/items", data: data, version: 150)
@@ -75,14 +78,15 @@ RSpec.describe Zotero::Client do
       end
 
       it "includes write token when provided" do
-        response = double("HTTParty::Response", code: 200, parsed_response: {})
+        response = double("Response", code: 200, parsed_response: {})
         data = [{ itemType: "book" }]
 
-        expect(described_class).to receive(:post).with(
+        expect(client).to receive(:http_request).with(
+          :post,
           "/users/123/items",
           headers: hash_including("Zotero-Write-Token" => "abc123"),
           body: data,
-          query: {}
+          params: {}
         ).and_return(response)
 
         client.post("/users/123/items", data: data, write_token: "abc123")
@@ -91,10 +95,11 @@ RSpec.describe Zotero::Client do
 
     describe "#put" do
       it "makes PUT requests with write headers" do
-        response = double("HTTParty::Response", code: 200, parsed_response: { "updated" => true })
+        response = double("Response", code: 200, parsed_response: { "updated" => true })
         data = { title: "Updated Title" }
 
-        expect(described_class).to receive(:put).with(
+        expect(client).to receive(:http_request).with(
+          :put,
           "/users/123/items/ABC123",
           headers: {
             "Zotero-API-Key" => api_key,
@@ -103,7 +108,7 @@ RSpec.describe Zotero::Client do
             "If-Unmodified-Since-Version" => "150"
           },
           body: data,
-          query: {}
+          params: {}
         ).and_return(response)
 
         result = client.put("/users/123/items/ABC123", data: data, version: 150)
@@ -113,10 +118,11 @@ RSpec.describe Zotero::Client do
 
     describe "#patch" do
       it "makes PATCH requests with version header" do
-        response = double("HTTParty::Response", code: 204)
+        response = double("Response", code: 204)
         data = { title: "Updated Title" }
 
-        expect(described_class).to receive(:patch).with(
+        expect(client).to receive(:http_request).with(
+          :patch,
           "/users/123/items/ABC123",
           headers: {
             "Zotero-API-Key" => api_key,
@@ -125,7 +131,7 @@ RSpec.describe Zotero::Client do
             "If-Unmodified-Since-Version" => "150"
           },
           body: data,
-          query: {}
+          params: {}
         ).and_return(response)
 
         result = client.patch("/users/123/items/ABC123", data: data, version: 150)
@@ -135,9 +141,10 @@ RSpec.describe Zotero::Client do
 
     describe "#delete" do
       it "makes DELETE requests with version header" do
-        response = double("HTTParty::Response", code: 204)
+        response = double("Response", code: 204)
 
-        expect(described_class).to receive(:delete).with(
+        expect(client).to receive(:http_request).with(
+          :delete,
           "/users/123/items/ABC123",
           headers: {
             "Zotero-API-Key" => api_key,
@@ -145,7 +152,7 @@ RSpec.describe Zotero::Client do
             "Content-Type" => "application/json",
             "If-Unmodified-Since-Version" => "150"
           },
-          query: {}
+          params: {}
         ).and_return(response)
 
         result = client.delete("/users/123/items/ABC123", version: 150)
@@ -156,9 +163,9 @@ RSpec.describe Zotero::Client do
 
   describe "error handling integration" do
     it "raises AuthenticationError on 401 authentication failure" do
-      response = double("HTTParty::Response", code: 401, message: "Unauthorized")
+      response = double("Response", code: 401, message: "Unauthorized")
 
-      allow(described_class).to receive(:get).and_return(response)
+      allow(client).to receive(:http_request).and_return(response)
 
       expect do
         client.get("/users/123/items")
@@ -167,9 +174,9 @@ RSpec.describe Zotero::Client do
 
     it "raises NotFoundError on 404 not found" do
       request = double("Request", path: "/users/123/items")
-      response = double("HTTParty::Response", code: 404, message: "Not Found", request: request)
+      response = double("Response", code: 404, message: "Not Found", request: request)
 
-      allow(described_class).to receive(:get).and_return(response)
+      allow(client).to receive(:http_request).and_return(response)
 
       expect do
         client.get("/users/123/items")
@@ -177,9 +184,9 @@ RSpec.describe Zotero::Client do
     end
 
     it "raises ServerError on 500 server errors" do
-      response = double("HTTParty::Response", code: 500, message: "Internal Server Error")
+      response = double("Response", code: 500, message: "Internal Server Error")
 
-      allow(described_class).to receive(:get).and_return(response)
+      allow(client).to receive(:http_request).and_return(response)
 
       expect do
         client.get("/users/123/items")

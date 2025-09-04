@@ -7,8 +7,8 @@ RSpec.describe Zotero::FileUpload do
   let(:instance) { test_class.new }
 
   before do
-    # Mock the HTTParty class methods
-    allow(instance.class).to receive(:post)
+    # Mock the http_request method that FileUpload now uses
+    allow(instance).to receive(:http_request)
 
     # Mock the auth methods that FileUpload expects from Client
     allow(instance).to receive(:auth_headers).and_return({ "Zotero-API-Key" => "test_key" })
@@ -28,11 +28,12 @@ RSpec.describe Zotero::FileUpload do
       }
       response = double("Response", code: 200, parsed_response: { "url" => "https://upload.zotero.org" })
 
-      expect(instance.class).to receive(:post).with(
+      expect(instance).to receive(:http_request).with(
+        :post,
         "/users/123/items/ABC123/file",
         headers: expected_headers,
         body: form_data,
-        query: {}
+        params: {}
       ).and_return(response)
 
       result = instance.post_form("/users/123/items/ABC123/file",
@@ -50,11 +51,12 @@ RSpec.describe Zotero::FileUpload do
       }
       response = double("Response", code: 200, parsed_response: {})
 
-      expect(instance.class).to receive(:post).with(
+      expect(instance).to receive(:http_request).with(
+        :post,
         "/users/123/items/ABC123/file",
         headers: expected_headers,
         body: form_data,
-        query: {}
+        params: {}
       ).and_return(response)
 
       result = instance.post_form("/users/123/items/ABC123/file",
@@ -70,7 +72,8 @@ RSpec.describe Zotero::FileUpload do
     it "makes multipart POST to external URL" do
       response = double("Response", code: 200, body: "Upload successful")
 
-      expect(instance.class).to receive(:post).with(
+      expect(instance).to receive(:http_request).with(
+        :post,
         "https://s3.amazonaws.com/upload",
         body: multipart_data,
         multipart: true,
@@ -84,7 +87,7 @@ RSpec.describe Zotero::FileUpload do
     it "raises error on upload failure" do
       response = double("Response", code: 500, message: "Server Error")
 
-      expect(instance.class).to receive(:post).and_return(response)
+      expect(instance).to receive(:http_request).and_return(response)
 
       expect do
         instance.external_post("https://s3.amazonaws.com/upload", multipart_data: multipart_data)

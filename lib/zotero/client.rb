@@ -8,6 +8,13 @@ require_relative "http_errors"
 require_relative "syncing"
 
 module Zotero
+  # The main HTTP client for interacting with the Zotero Web API v3.
+  # Provides authentication, request handling, and access to library operations.
+  #
+  # @example Create a client with API key
+  #   client = Zotero::Client.new(api_key: 'your-api-key-here')
+  #   library = client.user_library(12345)
+  #
   class Client
     include HTTParty
     include ItemTypes
@@ -19,6 +26,9 @@ module Zotero
     base_uri "https://api.zotero.org"
     format :json
 
+    # Initialize a new Zotero API client.
+    #
+    # @param api_key [String] Your Zotero API key from https://www.zotero.org/settings/keys
     def initialize(api_key:)
       @api_key = api_key
     end
@@ -65,10 +75,18 @@ module Zotero
       handle_write_response(response)
     end
 
+    # Get a Library instance for a specific user.
+    #
+    # @param user_id [Integer, String] The Zotero user ID
+    # @return [Library] A Library instance for the specified user
     def user_library(user_id)
       Library.new(client: self, type: :user, id: user_id)
     end
 
+    # Get a Library instance for a specific group.
+    #
+    # @param group_id [Integer, String] The Zotero group ID
+    # @return [Library] A Library instance for the specified group
     def group_library(group_id)
       Library.new(client: self, type: :group, id: group_id)
     end

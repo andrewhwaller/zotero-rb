@@ -5,6 +5,15 @@ require_relative "fulltext"
 require_relative "syncing"
 
 module Zotero
+  # Represents a Zotero library (user or group) and provides methods for
+  # managing items, collections, tags, searches, and file operations.
+  #
+  # @example Working with a user library
+  #   client = Zotero.new(api_key: 'your-key')
+  #   library = client.user_library(12345)
+  #   items = library.items
+  #   collections = library.collections
+  #
   class Library
     # TODO: rename this module, LibraryFileOperations sounds weird
     include LibraryFileOperations
@@ -13,6 +22,11 @@ module Zotero
 
     VALID_TYPES = %w[user group].freeze
 
+    # Initialize a new Library instance.
+    #
+    # @param client [Client] The Zotero client instance
+    # @param type [String, Symbol] The library type (:user or :group)
+    # @param id [Integer, String] The library ID (user ID or group ID)
     def initialize(client:, type:, id:)
       @client = client
       @type = validate_type(type)
@@ -20,10 +34,18 @@ module Zotero
       @base_path = "/#{@type}s/#{@id}"
     end
 
+    # Get collections in this library.
+    #
+    # @param params [Hash] Query parameters for the request
+    # @return [Array, Hash] Collections data from the API
     def collections(**params)
       @client.get("#{@base_path}/collections", params: params)
     end
 
+    # Get items in this library.
+    #
+    # @param params [Hash] Query parameters for the request
+    # @return [Array, Hash] Items data from the API
     def items(**params)
       @client.get("#{@base_path}/items", params: params)
     end
@@ -36,6 +58,12 @@ module Zotero
       @client.get("#{@base_path}/tags", params: params)
     end
 
+    # Create a new item in this library.
+    #
+    # @param item_data [Hash] The item data
+    # @param version [Integer] Optional version for conditional requests
+    # @param write_token [String] Optional write token for batch operations
+    # @return [Hash] The API response
     def create_item(item_data, version: nil, write_token: nil)
       create_single("items", item_data, version: version, write_token: write_token)
     end

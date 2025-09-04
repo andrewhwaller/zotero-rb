@@ -33,7 +33,7 @@ Gem::Specification.new do |spec|
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
     ls.readlines("\x0", chomp: true).reject do |f|
       (f == gemspec) ||
-        f.start_with?(*%w[bin/ test/ spec/ features/ .git .github appveyor Gemfile])
+        f.start_with?(*%w[bin/ test/ spec/ features/ scripts/ .git .github appveyor Gemfile])
     end
   end
   spec.bindir = "exe"
@@ -41,5 +41,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "httparty", "~> 0.21"
+  spec.add_dependency "httparty", "~> 0.21.0"
+  spec.add_dependency "csv"
 end

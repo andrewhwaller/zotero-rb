@@ -11,7 +11,21 @@ permissions:
   id-token: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby: ['3.2', '3.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - run: bundle exec rake
+
   release-please:
+    needs: test
     runs-on: ubuntu-latest
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
@@ -33,11 +47,8 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: true
       
-      - name: Run tests
-        run: bundle exec rake spec
-        
-      - name: Run RuboCop
-        run: bundle exec rubocop
+      - name: Run tests and linting
+        run: bundle exec rake
         
       - name: Build gem
         run: bundle exec rake build

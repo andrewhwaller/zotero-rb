@@ -41,6 +41,6 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime dependencies
-  spec.add_dependency "httparty", "~> 0.21.0"
   spec.add_dependency "csv"
+  spec.add_dependency "httparty", "~> 0.21.0"
 end

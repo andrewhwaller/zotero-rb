@@ -19,4 +19,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Metadata retrieval (item types, fields, creator types)
 - Comprehensive error handling with custom exception classes
 - Support for both user and group libraries
-- Ruby 3.1+ compatibility
+- Ruby 3.2+ compatibility

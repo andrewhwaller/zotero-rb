@@ -5,6 +5,8 @@
 
 A comprehensive Ruby client for the [Zotero Web API v3](https://www.zotero.org/support/dev/web_api/v3/start).
 
+NOTE: This gem is experimental and has not been fully tested with real data. So far, the gem has been set up to cover Zotero's web API documentation as much as possible, but testing is still ongoing. Do not use this gem for production applications without exercising due caution.
+
 ## Installation
 
 ```bash
@@ -54,6 +56,20 @@ bundle install
 bundle exec rake spec
 bundle exec rubocop
 ```
+
+## Releases
+
+This project uses [Release Please](https://github.com/googleapis/release-please) for automated releases:
+
+1. **Use conventional commits**: `feat: add new feature`, `fix: resolve bug`, etc.
+2. **Release Please creates PRs** automatically with version bumps and changelog updates
+3. **Merge the release PR** when ready to publish
+4. **Automatic publication** to RubyGems happens after merge
+
+### Repository Setup (for maintainers)
+
+To enable automated publishing, add this secret to the GitHub repository:
+- `RUBYGEMS_API_KEY`: Your RubyGems API token from https://rubygems.org/profile/edit
 
 ## License
 

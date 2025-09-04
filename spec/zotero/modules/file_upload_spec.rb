@@ -76,8 +76,7 @@ RSpec.describe Zotero::FileUpload do
         :post,
         "https://s3.amazonaws.com/upload",
         body: multipart_data,
-        multipart: true,
-        format: :plain
+        options: { multipart: true, format: :plain }
       ).and_return(response)
 
       result = instance.external_post("https://s3.amazonaws.com/upload", multipart_data: multipart_data)

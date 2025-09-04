@@ -14,7 +14,7 @@ module Zotero
     end
 
     def external_post(url, multipart_data:)
-      response = http_request(:post, url, body: multipart_data, multipart: true, format: :plain)
+      response = http_request(:post, url, body: multipart_data, options: { multipart: true, format: :plain })
 
       case response.code
       when 200..299

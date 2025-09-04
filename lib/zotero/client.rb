@@ -18,6 +18,7 @@ module Zotero
   #   client = Zotero::Client.new(api_key: 'your-api-key-here')
   #   library = client.user_library(12345)
   #
+  # rubocop:disable Metrics/ClassLength
   class Client
     include ItemTypes
     include Fields
@@ -94,16 +95,27 @@ module Zotero
 
     protected
 
-    def http_request(method, path, headers: {}, body: nil, params: {}, multipart: false, format: nil)
-      uri = build_uri(path, params)
+    def http_request(method, path, **options)
+      request_options = build_request_options(options)
+      uri = build_uri(path, request_options[:params])
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true if uri.scheme == "https"
 
-      request = build_request(method, uri, headers, body, multipart, format)
+      request = build_request(method, uri, request_options[:headers], request_options[:body], request_options)
 
       net_response = http.request(request)
       ResponseAdapter.new(net_response, uri)
+    end
+
+    def build_request_options(options)
+      {
+        headers: options[:headers] || {},
+        body: options[:body],
+        params: options[:params] || {},
+        multipart: options.dig(:options, :multipart),
+        format: options.dig(:options, :format)
+      }
     end
 
     def build_uri(path, params = {})
@@ -118,7 +130,14 @@ module Zotero
       uri
     end
 
-    def build_request(method, uri, headers, body, multipart, _format)
+    def build_request(method, uri, headers, body, request_options)
+      request = create_request(method, uri)
+      set_headers(request, headers)
+      set_request_body(request, method, body, headers, request_options) if body
+      request
+    end
+
+    def create_request(method, uri)
       request_class = case method
                       when :get then Net::HTTP::Get
                       when :post then Net::HTTP::Post
@@ -128,25 +147,24 @@ module Zotero
                       else raise ArgumentError, "Unsupported HTTP method: #{method}"
                       end
 
-      request = request_class.new(uri)
+      request_class.new(uri)
+    end
 
+    def set_headers(request, headers)
       headers.each { |key, value| request[key] = value }
+    end
 
-      if body && %i[post put patch].include?(method)
-        if multipart
-          # Handle multipart form data for file uploads
-          request.set_form(body, "multipart/form-data")
-        elsif headers["Content-Type"] == "application/x-www-form-urlencoded"
-          # Handle form encoding
-          request.set_form_data(body)
-        else
-          # Handle JSON body
-          request.body = body.is_a?(String) ? body : JSON.generate(body)
-          request["Content-Type"] = "application/json" unless headers["Content-Type"]
-        end
+    def set_request_body(request, method, body, headers, request_options)
+      return unless %i[post put patch].include?(method)
+
+      if request_options[:multipart]
+        request.set_form(body, "multipart/form-data")
+      elsif headers["Content-Type"] == "application/x-www-form-urlencoded"
+        request.set_form_data(body)
+      else
+        request.body = body.is_a?(String) ? body : JSON.generate(body)
+        request["Content-Type"] = "application/json" unless headers["Content-Type"]
       end
-
-      request
     end
 
     private
@@ -195,6 +213,7 @@ module Zotero
       end
     end
   end
+  # rubocop:enable Metrics/ClassLength
 
   # Adapter to provide HTTParty-compatible interface for Net::HTTP responses
   class ResponseAdapter

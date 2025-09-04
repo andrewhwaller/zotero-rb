@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "digest"
 
 RSpec.describe Zotero::LibraryFileOperations do
   let(:mock_client) { double("Client") }

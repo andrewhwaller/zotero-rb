@@ -24,7 +24,6 @@ module Zotero
     include Syncing
 
     base_uri "https://api.zotero.org"
-    format :json
 
     # Initialize a new Zotero API client.
     #

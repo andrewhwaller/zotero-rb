@@ -9,13 +9,13 @@ RSpec.describe Zotero::Fields do
 
   before do
     instance.instance_variable_set(:@client, mock_client) if mock_client
-    allow(instance).to receive(:get) { |*args| mock_client&.get(*args) }
+    allow(instance).to receive(:make_get_request) { |*args| mock_client&.make_get_request(*args) }
   end
 
   describe "#item_fields" do
     it "returns item fields" do
       fields_response = [{ "field" => "title", "localized" => "Title" }]
-      expect(instance).to receive(:get).with("/itemFields", params: {}).and_return(fields_response)
+      expect(instance).to receive(:make_get_request).with("/itemFields", params: {}).and_return(fields_response)
 
       result = instance.item_fields
       expect(result).to eq(fields_response)
@@ -23,7 +23,8 @@ RSpec.describe Zotero::Fields do
 
     it "returns item fields with locale" do
       fields_response = [{ "field" => "title", "localized" => "Titre" }]
-      expect(instance).to receive(:get).with("/itemFields", params: { locale: "fr-FR" }).and_return(fields_response)
+      expect(instance).to receive(:make_get_request).with("/itemFields",
+                                                          params: { locale: "fr-FR" }).and_return(fields_response)
 
       result = instance.item_fields(locale: "fr-FR")
       expect(result).to eq(fields_response)
@@ -33,7 +34,8 @@ RSpec.describe Zotero::Fields do
   describe "#creator_fields" do
     it "returns creator fields" do
       creator_fields_response = [{ "field" => "firstName", "localized" => "First Name" }]
-      expect(instance).to receive(:get).with("/creatorFields", params: {}).and_return(creator_fields_response)
+      expect(instance).to receive(:make_get_request).with("/creatorFields",
+                                                          params: {}).and_return(creator_fields_response)
 
       result = instance.creator_fields
       expect(result).to eq(creator_fields_response)
@@ -41,8 +43,9 @@ RSpec.describe Zotero::Fields do
 
     it "returns creator fields with locale" do
       creator_fields_response = [{ "field" => "firstName", "localized" => "Prénom" }]
-      expect(instance).to receive(:get).with("/creatorFields",
-                                             params: { locale: "fr-FR" }).and_return(creator_fields_response)
+      expect(instance).to receive(:make_get_request)
+        .with("/creatorFields", params: { locale: "fr-FR" })
+        .and_return(creator_fields_response)
 
       result = instance.creator_fields(locale: "fr-FR")
       expect(result).to eq(creator_fields_response)

@@ -38,33 +38,45 @@ RSpec.describe Zotero::Library do
   end
 
   describe "basic resource methods integration" do
-    it "#collections delegates to client with correct path" do
+    it "#collections returns collections data" do
       collections_response = [{ "key" => "ABC123", "data" => { "name" => "My Collection" } }]
-      expect(client).to receive(:get).with("/users/123/collections", params: {}).and_return(collections_response)
+
+      expect(client).to receive(:make_get_request)
+        .with("/users/123/collections", params: {})
+        .and_return(collections_response)
 
       result = user_library.collections
       expect(result).to eq(collections_response)
     end
 
-    it "#items delegates to client with parameters" do
+    it "#items returns items data with parameters" do
       items_response = [{ "key" => "DEF456", "data" => { "title" => "Sample Book" } }]
-      expect(client).to receive(:get).with("/groups/456/items", params: { limit: 10 }).and_return(items_response)
+
+      expect(client).to receive(:make_get_request)
+        .with("/groups/456/items", params: { limit: 10 })
+        .and_return(items_response)
 
       result = group_library.items(limit: 10)
       expect(result).to eq(items_response)
     end
 
-    it "#searches delegates to client with correct path" do
+    it "#searches returns search data" do
       searches_response = [{ "key" => "GHI789", "data" => { "name" => "My Search" } }]
-      expect(client).to receive(:get).with("/users/123/searches", params: {}).and_return(searches_response)
+
+      expect(client).to receive(:make_get_request)
+        .with("/users/123/searches", params: {})
+        .and_return(searches_response)
 
       result = user_library.searches
       expect(result).to eq(searches_response)
     end
 
-    it "#tags delegates to client with correct path" do
+    it "#tags returns tags data" do
       tags_response = [{ "tag" => "important", "meta" => { "numItems" => 5 } }]
-      expect(client).to receive(:get).with("/users/123/tags", params: {}).and_return(tags_response)
+
+      expect(client).to receive(:make_get_request)
+        .with("/users/123/tags", params: {})
+        .and_return(tags_response)
 
       result = user_library.tags
       expect(result).to eq(tags_response)
@@ -73,66 +85,104 @@ RSpec.describe Zotero::Library do
 
   describe "write operations integration" do
     describe "item operations" do
-      it "#create_item wraps single item in array" do
+      it "#create_item returns creation response" do
         item_data = { itemType: "book", title: "Test" }
-        expect(client).to receive(:post).with("/users/123/items", data: [item_data], version: 150, write_token: nil)
-        user_library.create_item(item_data, version: 150)
+        create_response = { "successful" => { "0" => "NEWKEY123" } }
+
+        expect(client).to receive(:make_write_request)
+          .with(:post, "/users/123/items", data: [item_data], options: { version: 150 }, write_token: nil)
+          .and_return(create_response)
+
+        result = user_library.create_item(item_data, options: { version: 150 })
+        expect(result).to eq(create_response)
       end
 
-      it "#update_item calls patch with correct path" do
+      it "#update_item returns success response" do
         item_data = { title: "Updated Title" }
-        expect(client).to receive(:patch).with("/users/123/items/ABC123", data: item_data, version: 150)
-        user_library.update_item("ABC123", item_data, version: 150)
+
+        expect(client).to receive(:make_write_request)
+          .with(:patch, "/users/123/items/ABC123", data: item_data, options: { version: 150 })
+          .and_return(true)
+
+        result = user_library.update_item("ABC123", item_data, options: { version: 150 })
+        expect(result).to be true
       end
 
-      it "#delete_item calls delete with item key" do
-        expect(client).to receive(:delete).with("/users/123/items/ABC123", version: 150)
-        user_library.delete_item("ABC123", version: 150)
+      it "#delete_item returns success response" do
+        expect(client).to receive(:make_write_request)
+          .with(:delete, "/users/123/items/ABC123", options: { version: 150 })
+          .and_return(true)
+
+        result = user_library.delete_item("ABC123", options: { version: 150 })
+        expect(result).to be true
       end
 
-      it "#delete_items joins item keys for bulk delete" do
-        expect(client).to receive(:delete).with("/users/123/items",
-                                                version: 150,
-                                                params: { itemKey: "ABC123,DEF456" })
-        user_library.delete_items(%w[ABC123 DEF456], version: 150)
+      it "#delete_items returns success response for bulk deletion" do
+        expect(client).to receive(:make_write_request)
+          .with(:delete, "/users/123/items", options: { version: 150 }, params: { itemKey: "ABC123,DEF456" })
+          .and_return(true)
+
+        result = user_library.delete_items(%w[ABC123 DEF456], options: { version: 150 })
+        expect(result).to be true
       end
     end
 
     describe "collection operations" do
-      it "#create_collection wraps single collection in array" do
+      it "#create_collection returns creation response" do
         collection_data = { name: "Test Collection" }
-        expect(client).to receive(:post).with("/users/123/collections", data: [collection_data], version: 150,
-                                                                        write_token: nil)
-        user_library.create_collection(collection_data, version: 150)
+        create_response = { "successful" => { "0" => "NEWCOLL123" } }
+
+        http_response = double("HTTP Response", code: "200", body: JSON.generate(create_response))
+        allow(client).to receive(:http_request).and_return(http_response)
+
+        result = user_library.create_collection(collection_data, options: { version: 150 })
+        expect(result).to eq(create_response)
       end
 
-      it "#update_collection calls patch with correct path" do
+      it "#update_collection returns success response" do
         collection_data = { name: "Updated Name" }
-        expect(client).to receive(:patch).with("/users/123/collections/XYZ789", data: collection_data, version: 150)
-        user_library.update_collection("XYZ789", collection_data, version: 150)
+
+        http_response = double("HTTP Response", code: "204")
+        allow(client).to receive(:http_request).and_return(http_response)
+
+        result = user_library.update_collection("XYZ789", collection_data, options: { version: 150 })
+        expect(result).to be true
       end
 
-      it "#delete_collection calls delete with collection key" do
-        expect(client).to receive(:delete).with("/users/123/collections/XYZ789", version: 150)
-        user_library.delete_collection("XYZ789", version: 150)
+      it "#delete_collection returns success response" do
+        http_response = double("HTTP Response", code: "204")
+        allow(client).to receive(:http_request).and_return(http_response)
+
+        result = user_library.delete_collection("XYZ789", options: { version: 150 })
+        expect(result).to be true
       end
     end
   end
 
   describe "private methods" do
     describe "#create_single" do
-      it "wraps data in array and calls client post" do
+      it "returns creation response for single item" do
         data = { name: "Test" }
-        expect(client).to receive(:post).with("/users/123/items", data: [data], version: 100, write_token: "token")
-        user_library.send(:create_single, "items", data, version: 100, write_token: "token")
+        create_response = { "successful" => { "0" => "NEWKEY123" } }
+
+        http_response = double("HTTP Response", code: "200", body: JSON.generate(create_response))
+        allow(client).to receive(:http_request).and_return(http_response)
+
+        result = user_library.send(:create_single, "items", data, version: 100, write_token: "token")
+        expect(result).to eq(create_response)
       end
     end
 
     describe "#create_multiple" do
-      it "passes array directly to client post" do
+      it "returns creation response for multiple items" do
         data_array = [{ name: "Test1" }, { name: "Test2" }]
-        expect(client).to receive(:post).with("/users/123/items", data: data_array, version: 100, write_token: "token")
-        user_library.send(:create_multiple, "items", data_array, version: 100, write_token: "token")
+        create_response = { "successful" => { "0" => "KEY1", "1" => "KEY2" } }
+
+        http_response = double("HTTP Response", code: "200", body: JSON.generate(create_response))
+        allow(client).to receive(:http_request).and_return(http_response)
+
+        result = user_library.send(:create_multiple, "items", data_array, version: 100, write_token: "token")
+        expect(result).to eq(create_response)
       end
     end
 

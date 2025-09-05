@@ -5,7 +5,7 @@
 
 A comprehensive Ruby client for the [Zotero Web API v3](https://www.zotero.org/support/dev/web_api/v3/start).
 
-NOTE: This gem is experimental and has not been fully tested with real data. So far, the gem has been set up to cover Zotero's web API documentation as much as possible, but testing is still ongoing. Do not use this gem for production applications without exercising due caution.
+NOTE: This gem is experimental and has not been fully tested with real data. So far, the gem has been set up to cover Zotero's web API documentation as much as possible, but testing is still ongoing. Do not use this gem for production applications without exercising due caution. Having said that, if you come across something that doesn't work, open up an issue or even a PR and I'd be happy to get a fix going.
 
 ## Installation
 

@@ -35,50 +35,12 @@ module Zotero
     # Initialize a new Zotero API client.
     #
     # @param api_key [String] Your Zotero API key from https://www.zotero.org/settings/keys
+    # Initialize a new Zotero client with API key.
+    #
+    # @param api_key [String] Your Zotero API key
+    # @raise [ArgumentError] if api_key is nil or empty
     def initialize(api_key:)
       @api_key = api_key
-    end
-
-    def get(path, params: {})
-      response = http_request(:get, path,
-                              headers: auth_headers.merge(default_headers),
-                              params: params)
-      handle_response(response, params[:format])
-    end
-
-    def post(path, data:, version: nil, write_token: nil, params: {})
-      headers = build_write_headers(version: version, write_token: write_token)
-      response = http_request(:post, path,
-                              headers: headers,
-                              body: data,
-                              params: params)
-      handle_write_response(response)
-    end
-
-    def patch(path, data:, version: nil, params: {})
-      headers = build_write_headers(version: version)
-      response = http_request(:patch, path,
-                              headers: headers,
-                              body: data,
-                              params: params)
-      handle_write_response(response)
-    end
-
-    def put(path, data:, version: nil, params: {})
-      headers = build_write_headers(version: version)
-      response = http_request(:put, path,
-                              headers: headers,
-                              body: data,
-                              params: params)
-      handle_write_response(response)
-    end
-
-    def delete(path, version: nil, params: {})
-      headers = build_write_headers(version: version)
-      response = http_request(:delete, path,
-                              headers: headers,
-                              params: params)
-      handle_write_response(response)
     end
 
     # Get a Library instance for a specific user.
@@ -97,6 +59,33 @@ module Zotero
       Library.new(client: self, type: :group, id: group_id)
     end
 
+    # Make a GET request to the Zotero API.
+    # This is the main public interface for read operations.
+    #
+    # @param path [String] The API endpoint path
+    # @param params [Hash] Query parameters for the request
+    # @return [Array, Hash] The parsed response data
+    def make_get_request(path, params: {})
+      headers = auth_headers.merge(default_headers)
+      response = http_request(:get, path, headers: headers, params: params)
+      handle_response(response, params[:format])
+    end
+
+    # Make a write request (POST, PATCH, PUT, DELETE) to the Zotero API.
+    # This is the main public interface for write operations.
+    #
+    # @param method [Symbol] The HTTP method (:post, :patch, :put, :delete)
+    # @param path [String] The API endpoint path
+    # @param data [Hash, Array] Optional request body data
+    # @param options [Hash] Write options (version: Integer, write_token: String)
+    # @param params [Hash] Query parameters for the request
+    # @return [Hash, Boolean] The parsed response data or success status
+    def make_write_request(method, path, data: nil, options: {}, params: {})
+      headers = build_write_headers(version: options[:version], write_token: options[:write_token])
+      response = http_request(method, path, headers: headers, body: data, params: params)
+      handle_write_response(response)
+    end
+
     protected
 
     def http_request(method, path, **options)
@@ -107,10 +96,46 @@ module Zotero
         connection = HTTPConnection.new(uri)
         request = build_request(method, uri, request_options[:headers], request_options[:body], request_options)
 
-        net_response = connection.request(request)
-        ResponseAdapter.new(net_response, uri)
+        connection.request(request)
       end
     end
+
+    def auth_headers
+      { "Zotero-API-Key" => api_key }
+    end
+
+    def default_headers
+      { "Zotero-API-Version" => "3" }
+    end
+
+    def build_write_headers(version: nil, write_token: nil)
+      headers = auth_headers.merge(default_headers)
+      headers["Content-Type"] = "application/json"
+      headers["If-Unmodified-Since-Version"] = version.to_s if version
+      headers["Zotero-Write-Token"] = write_token if write_token
+      headers
+    end
+
+    def handle_response(response, format = nil)
+      return parse_response_body(response, format) if response.code.to_i.between?(200, 299)
+
+      raise_error_for_status(response)
+    end
+
+    def handle_write_response(response)
+      case response.code.to_i
+      when 200
+        parse_json_response(response)
+      when 204
+        true
+      else
+        raise_error_for_status(response)
+      end
+    end
+
+    private
+
+    attr_reader :api_key
 
     def build_request_options(options)
       {
@@ -171,109 +196,22 @@ module Zotero
       end
     end
 
-    private
-
-    attr_reader :api_key
-
-    def auth_headers
-      { "Zotero-API-Key" => api_key }
-    end
-
-    def default_headers
-      { "Zotero-API-Version" => "3" }
-    end
-
-    def build_write_headers(version: nil, write_token: nil)
-      headers = auth_headers.merge(default_headers)
-      headers["Content-Type"] = "application/json"
-      headers["If-Unmodified-Since-Version"] = version.to_s if version
-      headers["Zotero-Write-Token"] = write_token if write_token
-      headers
-    end
-
-    def handle_response(response, format = nil)
-      return parse_response_body(response, format) if response.code.between?(200, 299)
-
-      raise_error_for_status(response)
-    end
-
-    def handle_write_response(response)
-      case response.code
-      when 200
-        response.parsed_response
-      when 204
-        true
-      else
-        raise_error_for_status(response)
-      end
-    end
-
     def parse_response_body(response, format)
       case format&.to_s
       when "json", nil
-        response.parsed_response
+        parse_json_response(response)
       else
         response.body
       end
     end
+
+    def parse_json_response(response)
+      return nil if response.body.nil? || response.body.empty?
+
+      JSON.parse(response.body)
+    rescue JSON::ParserError
+      response.body
+    end
   end
   # rubocop:enable Metrics/ClassLength
-
-  # Adapter to provide HTTParty-compatible interface for Net::HTTP responses
-  class ResponseAdapter
-    attr_reader :net_response, :uri
-
-    def initialize(net_response, uri)
-      @net_response = net_response
-      @uri = uri
-    end
-
-    def code
-      @net_response.code.to_i
-    end
-
-    def parsed_response
-      @parsed_response ||= parse_body
-    end
-
-    def body
-      @net_response.body
-    end
-
-    def headers
-      @headers ||= @net_response.to_hash.transform_values(&:first)
-    end
-
-    def message
-      @net_response.message
-    end
-
-    def request
-      @request ||= RequestAdapter.new(@uri)
-    end
-
-    private
-
-    def parse_body
-      content_type = @net_response.content_type
-      return nil if @net_response.body.nil? || @net_response.body.empty?
-
-      if content_type&.include?("application/json")
-        JSON.parse(@net_response.body)
-      else
-        @net_response.body
-      end
-    rescue JSON::ParserError
-      @net_response.body
-    end
-  end
-
-  # Adapter to provide request.path access for error handling
-  class RequestAdapter
-    attr_reader :path
-
-    def initialize(uri)
-      @path = uri.path
-    end
-  end
 end

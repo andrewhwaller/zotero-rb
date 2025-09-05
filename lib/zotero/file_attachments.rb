@@ -3,20 +3,40 @@
 require "digest"
 
 module Zotero
-  # File upload operations for library items
-  module LibraryFileOperations
+  # File attachment operations for library items
+  module FileAttachments
+    # Create a new attachment item in the library.
+    #
+    # @param attachment_data [Hash] The attachment data including itemType, contentType, etc.
+    # @param version [Integer] Optional version for conditional requests
+    # @param write_token [String] Optional write token for batch operations
+    # @return [Hash] The API response with created attachment
     def create_attachment(attachment_data, version: nil, write_token: nil)
       create_single("items", attachment_data, version: version, write_token: write_token)
     end
 
+    # Get file information for an attachment item.
+    #
+    # @param item_key [String] The attachment item key
+    # @return [Hash] File information including filename, md5, mtime
     def get_file_info(item_key)
-      @client.get("#{@base_path}/items/#{item_key}/file")
+      @client.make_get_request("#{@base_path}/items/#{item_key}/file")
     end
 
+    # Upload a file to an attachment item.
+    #
+    # @param item_key [String] The attachment item key
+    # @param file_path [String] Local path to the file to upload
+    # @return [Boolean] Success status
     def upload_file(item_key, file_path)
       perform_file_upload(item_key, file_path, existing_file: false)
     end
 
+    # Update the file content of an existing attachment.
+    #
+    # @param item_key [String] The attachment item key
+    # @param file_path [String] Local path to the new file
+    # @return [Boolean] Success status
     def update_file(item_key, file_path)
       perform_file_upload(item_key, file_path, existing_file: true)
     end

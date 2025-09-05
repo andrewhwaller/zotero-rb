@@ -16,11 +16,12 @@ module Zotero
     def external_post(url, multipart_data:)
       response = http_request(:post, url, body: multipart_data, options: { multipart: true, format: :plain })
 
-      case response.code
+      code = response.code.to_i
+      case code
       when 200..299
         response.body
       else
-        raise Error, "External upload failed: HTTP #{response.code} - #{response.message}"
+        raise Error, "External upload failed: HTTP #{code} - #{response.message}"
       end
     end
 

@@ -53,7 +53,7 @@ RSpec.describe Zotero::Fulltext do
         :put,
         "/users/123/items/ABC123/fulltext",
         data: content_data,
-        version: nil
+        options: { version: nil }
       ).and_return(true)
 
       result = instance.set_item_fulltext("ABC123", content_data)
@@ -65,10 +65,10 @@ RSpec.describe Zotero::Fulltext do
         :put,
         "/users/123/items/ABC123/fulltext",
         data: content_data,
-        version: 42
+        options: { version: 42 }
       ).and_return(true)
 
-      result = instance.set_item_fulltext("ABC123", content_data, version: 42)
+      result = instance.set_item_fulltext("ABC123", content_data, options: { version: 42 })
       expect(result).to be true
     end
   end

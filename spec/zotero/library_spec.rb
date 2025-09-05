@@ -104,7 +104,7 @@ RSpec.describe Zotero::Library do
           .with(:patch, "/users/123/items/ABC123", data: item_data, options: { version: 150 })
           .and_return(true)
 
-        result = user_library.update_item("ABC123", item_data, options: { version: 150 })
+        result = user_library.update_item("ABC123", item_data, version: 150)
         expect(result).to be true
       end
 
@@ -113,7 +113,7 @@ RSpec.describe Zotero::Library do
           .with(:delete, "/users/123/items/ABC123", options: { version: 150 })
           .and_return(true)
 
-        result = user_library.delete_item("ABC123", options: { version: 150 })
+        result = user_library.delete_item("ABC123", version: 150)
         expect(result).to be true
       end
 
@@ -122,7 +122,7 @@ RSpec.describe Zotero::Library do
           .with(:delete, "/users/123/items", options: { version: 150 }, params: { itemKey: "ABC123,DEF456" })
           .and_return(true)
 
-        result = user_library.delete_items(%w[ABC123 DEF456], options: { version: 150 })
+        result = user_library.delete_items(%w[ABC123 DEF456], version: 150)
         expect(result).to be true
       end
     end
@@ -135,7 +135,7 @@ RSpec.describe Zotero::Library do
         http_response = double("HTTP Response", code: "200", body: JSON.generate(create_response))
         allow(client).to receive(:http_request).and_return(http_response)
 
-        result = user_library.create_collection(collection_data, options: { version: 150 })
+        result = user_library.create_collection(collection_data, version: 150)
         expect(result).to eq(create_response)
       end
 
@@ -145,7 +145,7 @@ RSpec.describe Zotero::Library do
         http_response = double("HTTP Response", code: "204")
         allow(client).to receive(:http_request).and_return(http_response)
 
-        result = user_library.update_collection("XYZ789", collection_data, options: { version: 150 })
+        result = user_library.update_collection("XYZ789", collection_data, version: 150)
         expect(result).to be true
       end
 
@@ -153,7 +153,7 @@ RSpec.describe Zotero::Library do
         http_response = double("HTTP Response", code: "204")
         allow(client).to receive(:http_request).and_return(http_response)
 
-        result = user_library.delete_collection("XYZ789", options: { version: 150 })
+        result = user_library.delete_collection("XYZ789", version: 150)
         expect(result).to be true
       end
     end

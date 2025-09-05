@@ -68,7 +68,7 @@ RSpec.describe Zotero::Fulltext do
         options: { version: 42 }
       ).and_return(true)
 
-      result = instance.set_item_fulltext("ABC123", content_data, options: { version: 42 })
+      result = instance.set_item_fulltext("ABC123", content_data, version: 42)
       expect(result).to be true
     end
   end

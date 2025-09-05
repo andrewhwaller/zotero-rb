@@ -90,10 +90,10 @@ RSpec.describe Zotero::Library do
         create_response = { "successful" => { "0" => "NEWKEY123" } }
 
         expect(client).to receive(:make_write_request)
-          .with(:post, "/users/123/items", data: [item_data], options: { version: 150 }, write_token: nil)
+          .with(:post, "/users/123/items", data: [item_data], options: { version: 150, write_token: nil })
           .and_return(create_response)
 
-        result = user_library.create_item(item_data, options: { version: 150 })
+        result = user_library.create_item(item_data, version: 150)
         expect(result).to eq(create_response)
       end
 

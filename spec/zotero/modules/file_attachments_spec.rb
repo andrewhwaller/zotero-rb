@@ -2,9 +2,9 @@
 
 require "spec_helper"
 
-RSpec.describe Zotero::LibraryFileOperations do
+RSpec.describe Zotero::FileAttachments do
   let(:mock_client) { double("Client") }
-  let(:test_class) { Class.new { include Zotero::LibraryFileOperations } }
+  let(:test_class) { Class.new { include Zotero::FileAttachments } }
   let(:instance) { test_class.new }
 
   before do
@@ -25,7 +25,9 @@ RSpec.describe Zotero::LibraryFileOperations do
   describe "#get_file_info" do
     it "calls correct endpoint" do
       file_info_response = { filename: "test.pdf", md5: "abc123", mtime: 1_234_567_890 }
-      expect(mock_client).to receive(:get).with("/users/123/items/ABC123/file").and_return(file_info_response)
+      expect(mock_client).to receive(:make_get_request)
+        .with("/users/123/items/ABC123/file")
+        .and_return(file_info_response)
 
       result = instance.get_file_info("ABC123")
       expect(result).to eq(file_info_response)

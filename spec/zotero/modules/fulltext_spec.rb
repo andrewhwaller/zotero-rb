@@ -15,8 +15,8 @@ RSpec.describe Zotero::Fulltext do
   describe "#fulltext_since" do
     it "calls correct endpoint with since parameter" do
       fulltext_response = { "ABC123" => 42, "DEF456" => 15 }
-      expect(mock_client).to receive(:get).with("/users/123/fulltext",
-                                                params: { since: 100 }).and_return(fulltext_response)
+      expect(mock_client).to receive(:make_get_request).with("/users/123/fulltext",
+                                                             params: { since: 100 }).and_return(fulltext_response)
 
       result = instance.fulltext_since(since: 100)
       expect(result).to eq(fulltext_response)
@@ -30,7 +30,9 @@ RSpec.describe Zotero::Fulltext do
   describe "#item_fulltext" do
     it "calls correct endpoint for specific item" do
       content_response = { "content" => "Sample text", "indexedChars" => 11, "totalChars" => 11 }
-      expect(mock_client).to receive(:get).with("/users/123/items/ABC123/fulltext").and_return(content_response)
+      expect(mock_client).to receive(:make_get_request)
+        .with("/users/123/items/ABC123/fulltext")
+        .and_return(content_response)
 
       result = instance.item_fulltext("ABC123")
       expect(result).to eq(content_response)
@@ -47,10 +49,11 @@ RSpec.describe Zotero::Fulltext do
     end
 
     it "calls PUT with content data" do
-      expect(mock_client).to receive(:put).with(
+      expect(mock_client).to receive(:make_write_request).with(
+        :put,
         "/users/123/items/ABC123/fulltext",
         data: content_data,
-        version: nil
+        options: { version: nil }
       ).and_return(true)
 
       result = instance.set_item_fulltext("ABC123", content_data)
@@ -58,10 +61,11 @@ RSpec.describe Zotero::Fulltext do
     end
 
     it "accepts version parameter" do
-      expect(mock_client).to receive(:put).with(
+      expect(mock_client).to receive(:make_write_request).with(
+        :put,
         "/users/123/items/ABC123/fulltext",
         data: content_data,
-        version: 42
+        options: { version: 42 }
       ).and_return(true)
 
       result = instance.set_item_fulltext("ABC123", content_data, version: 42)

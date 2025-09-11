@@ -35,9 +35,6 @@ module Zotero
     # Initialize a new Zotero API client.
     #
     # @param api_key [String] Your Zotero API key from https://www.zotero.org/settings/keys
-    # Initialize a new Zotero client with API key.
-    #
-    # @param api_key [String] Your Zotero API key
     # @raise [ArgumentError] if api_key is nil or empty
     def initialize(api_key:)
       @api_key = api_key
@@ -142,8 +139,8 @@ module Zotero
         headers: options[:headers] || {},
         body: options[:body],
         params: options[:params] || {},
-        multipart: options.dig(:options, :multipart),
-        format: options.dig(:options, :format)
+        multipart: options[:multipart],
+        format: options[:format]
       }
     end
 

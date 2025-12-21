@@ -15,6 +15,29 @@ RSpec.describe Zotero::Library do
       end.to raise_error(ArgumentError, /Invalid library type/)
     end
 
+    it "validates library id as positive integer" do
+      expect do
+        described_class.new(client: client, type: :user, id: -1)
+      end.to raise_error(ArgumentError, /Invalid library ID/)
+    end
+
+    it "validates library id as non-zero" do
+      expect do
+        described_class.new(client: client, type: :user, id: 0)
+      end.to raise_error(ArgumentError, /Invalid library ID/)
+    end
+
+    it "validates library id as numeric" do
+      expect do
+        described_class.new(client: client, type: :user, id: "abc")
+      end.to raise_error(ArgumentError, /Invalid library ID/)
+    end
+
+    it "accepts string id that represents positive integer" do
+      library = described_class.new(client: client, type: :user, id: "789")
+      expect(library.instance_variable_get(:@id)).to eq(789)
+    end
+
     it "accepts user type" do
       expect { user_library }.not_to raise_error
     end
@@ -34,6 +57,10 @@ RSpec.describe Zotero::Library do
     it "converts type to string" do
       expect(user_library.instance_variable_get(:@type)).to eq("user")
       expect(group_library.instance_variable_get(:@type)).to eq("group")
+    end
+
+    it "converts id to integer" do
+      expect(user_library.instance_variable_get(:@id)).to eq(123)
     end
   end
 

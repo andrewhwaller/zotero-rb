@@ -150,10 +150,10 @@ RSpec.describe Zotero::FileAttachments do
     end
 
     describe "#build_upload_params" do
-      let(:file_data) { double("File") }
+      let(:file_content) { "binary file content" }
 
       before do
-        allow(File).to receive(:open).with(file_path, "rb").and_return(file_data)
+        allow(File).to receive(:binread).with(file_path).and_return(file_content)
       end
 
       context "when params are provided" do
@@ -161,7 +161,7 @@ RSpec.describe Zotero::FileAttachments do
 
         it "merges params with file data" do
           result = instance.send(:build_upload_params, auth_response, file_path)
-          expect(result).to eq({ "key" => "value", "file" => file_data })
+          expect(result).to eq({ "key" => "value", "file" => file_content })
         end
       end
 
@@ -172,7 +172,7 @@ RSpec.describe Zotero::FileAttachments do
           result = instance.send(:build_upload_params, auth_response, file_path)
           expect(result).to eq({
                                  "prefix" => "prefix_data",
-                                 "file" => file_data,
+                                 "file" => file_content,
                                  "suffix" => "suffix_data"
                                })
         end

@@ -14,14 +14,21 @@ module Zotero
 
     def raise_client_error(response)
       code = response.code.to_i
+      detail = error_detail(response)
+
       case code
-      when 400, 413 then raise BadRequestError, "Bad request: #{response.body}"
-      when 401, 403 then raise AuthenticationError, "Authentication failed - check your API key"
-      when 404 then raise NotFoundError, "Resource not found"
-      when 409 then raise ConflictError, "Conflict: #{response.body}"
-      when 412 then raise PreconditionFailedError, "Precondition failed: #{response.body}"
-      when 428 then raise PreconditionRequiredError, "Precondition required: #{response.body}"
+      when 400, 413 then raise BadRequestError, "Bad request: #{detail}"
+      when 401, 403 then raise AuthenticationError, "Authentication failed: #{detail}"
+      when 404 then raise NotFoundError, "Resource not found: #{detail}"
+      when 409 then raise ConflictError, "Conflict: #{detail}"
+      when 412 then raise PreconditionFailedError, "Precondition failed: #{detail}"
+      when 428 then raise PreconditionRequiredError, "Precondition required: #{detail}"
       end
+    end
+
+    def error_detail(response)
+      body = response.body.to_s.strip
+      body.empty? ? "(no details)" : body
     end
 
     def raise_rate_limit_error(response)
@@ -31,7 +38,7 @@ module Zotero
       message = "Rate limited."
       message += " Backoff: #{backoff}s" if backoff
       message += " Retry after: #{retry_after}s" if retry_after
-      raise RateLimitError, message
+      raise RateLimitError.new(message, retry_after: retry_after, backoff: backoff)
     end
 
     def raise_server_or_unknown_error(response)

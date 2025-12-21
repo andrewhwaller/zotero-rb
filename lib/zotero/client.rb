@@ -63,9 +63,11 @@ module Zotero
     # @param params [Hash] Query parameters for the request
     # @return [Array, Hash] The parsed response data
     def make_get_request(path, params: {})
-      headers = auth_headers.merge(default_headers)
-      response = http_request(:get, path, headers: headers, params: params)
-      handle_response(response, params[:format])
+      with_retry do
+        headers = auth_headers.merge(default_headers)
+        response = http_request(:get, path, headers: headers, params: params)
+        handle_response(response, params[:format])
+      end
     end
 
     # Make a write request (POST, PATCH, PUT, DELETE) to the Zotero API.
@@ -78,9 +80,11 @@ module Zotero
     # @param params [Hash] Query parameters for the request
     # @return [Hash, Boolean] The parsed response data or success status
     def make_write_request(method, path, data: nil, options: {}, params: {})
-      headers = build_write_headers(version: options[:version], write_token: options[:write_token])
-      response = http_request(method, path, headers: headers, body: data, params: params)
-      handle_write_response(response)
+      with_retry do
+        headers = build_write_headers(version: options[:version], write_token: options[:write_token])
+        response = http_request(method, path, headers: headers, body: data, params: params)
+        handle_write_response(response)
+      end
     end
 
     protected
@@ -133,6 +137,29 @@ module Zotero
     private
 
     attr_reader :api_key
+
+    def with_retry
+      config = HTTPConfig.default
+      attempts = 0
+
+      begin
+        yield
+      rescue RateLimitError => e
+        attempts += 1
+        raise unless should_retry?(config, attempts)
+
+        sleep(calculate_retry_delay(e, attempts, config))
+        retry
+      end
+    end
+
+    def should_retry?(config, attempts)
+      config.retry_on_rate_limit && attempts <= config.max_retries
+    end
+
+    def calculate_retry_delay(error, attempt, config)
+      [error.wait_time, config.base_delay * (2**(attempt - 1))].max
+    end
 
     def build_request_options(options)
       {
@@ -206,8 +233,8 @@ module Zotero
       return nil if response.body.nil? || response.body.empty?
 
       JSON.parse(response.body)
-    rescue JSON::ParserError
-      response.body
+    rescue JSON::ParserError => e
+      raise ParseError, "Failed to parse JSON response: #{e.message}"
     end
   end
   # rubocop:enable Metrics/ClassLength

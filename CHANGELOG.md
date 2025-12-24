@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0](https://github.com/andrewhwaller/zotero-rb/compare/v0.2.0...v0.3.0) (2025-12-24)
+
+
+### Features
+
+* Add automatic retry with exponential backoff ([bb78859](https://github.com/andrewhwaller/zotero-rb/commit/bb7885948d388445b156bb69a560134875923fb5))
+* Add library ID validation ([b667267](https://github.com/andrewhwaller/zotero-rb/commit/b6672671d6d1141c900466547ffe5125757fb542))
+* Add ParseError and enhance RateLimitError ([813c533](https://github.com/andrewhwaller/zotero-rb/commit/813c533c0892b8286617ac9e0cef39dc5452d4e4))
+
+
+### Bug Fixes
+
+* Resolve file handle leak in file uploads ([75f8319](https://github.com/andrewhwaller/zotero-rb/commit/75f8319b6a43b7902d32781beeca3987cce73dbf))
+
 ## [0.1.5](https://github.com/andrewhwaller/zotero-rb/compare/v0.1.4...v0.1.5) (2025-09-11)
 
 
